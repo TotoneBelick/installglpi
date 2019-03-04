@@ -1,0 +1,291 @@
+
+##### Installation Configuration serveur LAMP GLPI et FusionInventory Agent #####
+
+	Testé avec Deian v9.7, Ubuntu v18.04.2 LTS, Apache2 v2.4, MariaDB v, PHP v7.2, Glpi v9.4.0,
+	FusionInventory plugin GLPI v9.4.0+1.0, FusionInventory Agent v2.4.2-1
+	
+	Pages de téléchargements
+		GLPI				:https://glpi-project.org/fr/telechargements/
+		FusionInventory plugin GLPI	:https://github.com/fusioninventory/fusioninventory-for-glpi/releases
+		FusionInventory Agent		:http://fusioninventory.org/documentation/agent/installation/linux/deb.html
+
+	Pages de manuels
+		Apache2			: https://httpd.apache.org/docs/2.4/fr/
+		MariaDB			: https://mariadb.com/kb/en/library/documentation/
+		PHP			: https://secure.php.net/manual/fr/index.php
+		phpMyAdmin		: https://docs.phpmyadmin.net/fr/latest/
+		GLPI			: https://glpi-project.org/DOC/FR/
+		FusionInventory		: http://fusioninventory.org/documentation/
+
+ Ouvrez un terminal en utilisateur (pas en ROOT;)
+
+ #### MAJ du system ####
+sudo apt update && sudo apt upgrade -y
+
+
+ #### Intallation paquets nécessaires ####
+sudo apt -y install curl wget openssl
+
+
+ #### Intallation serveur LAMP ####
+ Installation Apache2
+sudo apt install apache2 apache2-doc
+
+ Installation MariaDB
+sudo apt install mariadb-server
+
+ Installation PHP et modules PHP
+sudo apt install php php-xmlrpc php-cas php-imap php-ldap php-mcrypt php-apcu php-pear php-gd libmcrypt-dev mcrypt
+
+ Installation phpMyAdmin
+sudo apt install phpmyadmin
+
+
+ #### Configuration additionnelles apache2 ####
+ Création fichier .htaccess pour interdire l'affichage du contenu du répertoire web dans un navigateur
+  Ajouter les lignes suivantes dans le fichier .htaccess
+	<IfModule mod_autoindex.c>
+		Options -Indexes
+	</IfModule>
+sudo touch /var/www/html/.htaccess
+sudo nano /var/www/html/.htaccess
+
+ Création fichier info.php pour afficher les informations relative à php et ses modules dans un navigateur
+sudo touch /var/www/html/info.php
+sudo echo "<?php phpinfo(); ?>" > /var/www/html/info.php
+
+ Ajouter la variable "ServerName nomdevotremachine" dans apache2.conf en fin de fichier
+ ex1: ServerName nomdevotremachine
+ ex2: ServerName nomdevotremachine.local
+ ex3: ServerName www.mondns.com
+sudo nano /etc/apache2/apache2.conf
+
+ Modification site par deffaut
+ ajouter leslignes suivante apres la ligne "DocumentRoot /var/www/html" dans le fichier 000-default.conf
+	<Directory /var/www/html>
+		Options Indexes FollowSymLinks
+		AllowOverride All
+		Require all granted
+	</Directory>
+sudo nano /etc/apache2/sites-available/000-default.conf
+
+ Modification site SSL par deffaut (optionnel)
+ ajouter leslignes suivante apres la ligne "DocumentRoot /var/www/html" dans le fichier 000-default.conf
+	<Directory /var/www/html>
+		Options Indexes FollowSymLinks
+		AllowOverride All
+		Require all granted
+	</Directory>
+sudo nano /etc/apache2/sites-available/default-ssl.conf
+
+ Activation module rewrite necessaire pour glpi
+sudo a2enmod rewrite
+
+ Activation module apache2 SSL (optionnel)
+sudo a2enmod ssl
+
+ Activation site SSL par deffaut (optionnel)
+sudo a2ensite default-ssl
+
+
+ #### Securisation MySQL ####
+ Par défaut, le mot de passe administrateur MariaDB sera le même que celui de votre utilisateur système.
+ Pour personnaliser la sécurisation de votre base de données, voici la commande à effectuer
+sudo mysql_secure_installation
+
+ Entrez votre mot de passe « root », puis changez le mot de passe :
+Change the root password? [Y/n] => y
+New password: votre MDP
+Confirm password: votre MDP
+
+ Désactivez ensuite les connexions anonymes :
+Remove anonymous users? [Y/n] => y
+
+ Désactivez la connexion en « root » depuis une connexion distante :
+Disallow root login remotely? [Y/n] => y
+
+ Il faut maintenant effacer la base de données de test créée par défaut :
+Remove test database and access to it? [Y/n] => y
+
+ Il reste à charger les nouveaux paramètres :
+Reload privilege tables now? [Y/n] => y
+
+
+ #### GLPI ####
+ Téléchargement de glpi version 9.4.0
+cd ~/Téléchargements
+wget https://github.com/glpi-project/glpi/releases/download/9.4.0/glpi-9.4.0.tgz
+
+ Décompresser l'archive de glpi dans /var/www/html
+sudo cp ~/Téléchargements/glpi-9.4.0.tgz /var/www/html
+cd /var/www/html
+sudo tar xzvf glpi-9.4.0.tgz
+sudo rm glpi-9.4.0.tgz
+
+ Téléchargement plugin fusioninventory pour glpi version 9.4.0+1.0
+cd ~/Téléchargements
+wget https://github.com/fusioninventory/fusioninventory-for-glpi/releases/download/glpi9.4.0%2B1.0/fusioninventory-9.4.0+1.0.tar.bz2
+
+ Décompresser l'archive du  plugin fusioninventory pour glpi dans /var/www/html/glpi/plugins
+sudo cp ~/Téléchargements/fusioninventory-9.4.0+1.0.tar.bz2 /var/www/html/glpi/plugins
+sudo cd /var/www/html/glpi/plugins
+sudo tar jxvf fusioninventory-9.4.0+1.0.tar.bz2
+sudo rm fusioninventory-9.4.0+1.0.tar.bz2
+cd /home/$var1
+
+ ## Création d’un utilisateur et de la base de données pour le futur GLPI ##
+ Se connecter à la console du serveur de base de données MariaDB
+sudo mysql -u root -p
+
+ Création d’un utilisateur user-glpi pour l’accès à la base de données de GLPI remplacer 'MY-MDP' par votre 'mot de pass' 
+CREATE USER 'user-glpi'@'%' IDENTIFIED BY 'MY-MDP';
+
+ Création de la base de données de glpi
+CREATE DATABASE glpi;
+
+ Donner les droits au compte utilisateur user-glpi à la base de GLPI
+GRANT ALL PRIVILEGES ON glpi.* TO 'user-glpi'@'%';
+
+ Recharger les privilèges pour la prise en compte des modifications
+FLUSH PRIVILEGES;
+ 
+ Se déconnecter de la console du serveur de base de données MariaDB
+exit
+
+ ## Finalisation ##
+ Réglage des droits de fichiers sur /var/www/html
+sudo chmod -R 770 /var/www/html
+sudo chown -R root:'www-data' /var/www/html
+
+ Ajout de l'utilisateur au groupe www-data pour l'édition du contenue web
+sudo usermod $var1 -Ga www-data
+
+ Redémarrage Apache2
+sudo systemctl restart apache2
+
+ Ouvrire votre serveur GLPI dans le navigateur
+firefox http://localhost/glpi & 
+ ou en SSL
+firefox https://localhost/glpi &
+
+ Suivre l'assistant d'installation de GLPI
+ Choisir Francais cliquer sur OK
+ Cocher J'ai lu et ACCEPTE les termes de la licence énoncés ci-dessus. cliquer sur Continuer
+ Cliquer sur installer
+ Vérifier que tous les tests sont au vert dans le cas contraire corriger les anomalies, cliquer sur Continuer
+   Note : dans le cas d'une connection en SSL le message d'erreur suivant peut apparaitre
+          " L'accès web au dossier "files" ne devrait pas être autorisé mais cela ne peut pas être vérifié de
+            manière automatique sur cette instance. Make sure acces to fichier de log des erreurs is forbidden;
+			otherwise review .htaccess file and web server configuration "
+          Ne pas en tenir compte pour contrôler si l'accès au dossier "files" et bien protégé accéder à
+		  l’adresse https://localhost/glpi/files apache2 doit renvoyer Forbidden
+ Étape 1 Configuration de la connexion à la base de données
+	Serveur SQL (MariaDB ou MySQL) : localhost
+				   Utilisateur SQL : user-glpi
+				  Mot de passe SQL : MY-MDP ( à remplacer par ce que vous avez choisi lors de la création de la base )
+	cliquer sur Continuer
+ Étape 2 Sélectionner la base de données glpi cliquer sur Continuer
+ Étape 3 Cliquer sur Continuer
+ Étape 4 décocher envoyer statistiques d'usage cliquer sur continuer
+ Étape 5 Cliquer sur Continuer
+ Étape 6 Noter les identifiants et mots de passe par défaut
+    glpi/glpi pour le compte administrateur
+    tech/tech pour le compte technicien
+    normal/normal pour le compte normal
+    post-only/postonly pour le compte postonly
+  Cliquer sur Utiliser GLPI
+  
+ Premiére connection à GLPI
+  Se connecter avec l'Identifiant glpi et le mot de passe glpi
+  décocher "Se souvenir de moi" ne pas enregistrer l'identifiant mot de passe dans le navigateur
+ Aller dans Administration/Utilisateurs
+  modifier le mot de passe des comptes glpi, normal, post-only, tech
+ Aller dans Configuration/Plugins
+ dans la colonne Actions 
+  cliquer sur l'icône représentant un dossier avec un + patienter jusqu’au rafraichissement de la page
+  cliquer sur le bouton rouge Activer apparais lorsque le curseur de la souris pointe dessus le bouton passe au vert
+ Déconnectez-vous de glpi fermer le navigateur
+ 
+ 
+ #### FusionInventory Agent ###
+ Installation Paquets nécessaires à Fusioninventory agent
+sudo apt -y install dmidecode hwdata ucf hdparm
+sudo apt -y install perl libuniversal-require-perl libwww-perl libparse-edid-perl
+sudo apt -y install libproc-daemon-perl libfile-which-perl libhttp-daemon-perl
+sudo apt -y install libxml-treepp-perl libyaml-perl libnet-cups-perl libnet-ip-perl
+sudo apt -y install libdigest-sha-perl libsocket-getaddrinfo-perl libtext-template-perl
+
+ Installation Paquets nécessaires à fusioninventory-agent-task-network
+sudo apt -y install libnet-snmp-perl libcrypt-des-perl libnet-nbname-perl
+
+ SNMPv3 support
+sudo apt -y install libdigest-hmac-perl
+
+ Installation Paquets nécessaires à fusioninventory-agent-task-deploy
+sudo apt -y install libfile-copy-recursive-perl libparallel-forkmanager-perl
+
+ Téléchargement FusionInventory Agent version 2.4.2-1
+cd ~/Téléchargements
+wget http://ftp.fr.debian.org/debian/pool/main/f/fusioninventory-agent/fusioninventory-agent_2.4.2-1_all.deb
+wget http://ftp.fr.debian.org/debian/pool/main/f/fusioninventory-agent/fusioninventory-agent-task-collect_2.4.2-1_all.deb
+wget http://ftp.fr.debian.org/debian/pool/main/f/fusioninventory-agent/fusioninventory-agent-task-network_2.4.2-1_all.deb
+wget http://ftp.fr.debian.org/debian/pool/main/f/fusioninventory-agent/fusioninventory-agent-task-deploy_2.4.2-1_all.deb
+wget http://ftp.fr.debian.org/debian/pool/main/f/fusioninventory-agent/fusioninventory-agent-task-esx_2.4.2-1_all.deb
+
+ Installation FusionInventory Agent version 2.4.0+1.0
+sudo dpkg -i fusioninventory-agent_2.4.2-1_all.deb
+sudo dpkg -i fusioninventory-agent-task-collect_2.4.2-1_all.deb
+sudo dpkg -i fusioninventory-agent-task-network_2.4.2-1_all.deb
+sudo dpkg -i fusioninventory-agent-task-deploy_2.4.2-1_all.deb
+sudo dpkg -i fusioninventory-agent-task-esx_2.4.2-1_all.deb
+
+ Configuration de l'agent 
+ Ajouter la ligne suivante endesous de la ligne # send tasks results to a FusionInventory for GLPI server
+ server = http://localhost/glpi/plugins/fusioninventory/
+ si envoit a plusieur serveur separer par une virgule
+ example : server = http://server1/glpi/plugins/fusioninventory/, server = http://serveur2/glpi/plugins/fusioninventory/
+ si utilisation SSL https:// à la place de http://
+sudo nano /etc/fusioninventory/agent.cfg
+
+ Ajout de la tache cron de l'agent dans crontab
+ Ajouter la ligne suivante avant le # de fin
+ Ubuntu
+ 1 * * * * root /usr/bin/php7.2 /var/www/html/glpi/front/cron.php &>/dev/null
+ Debian
+ 1 * * * * root /usr/bin/php7.0 /var/www/html/glpi/front/cron.php &>/dev/null
+sudo nano /etc/crontab
+
+ Démarrage auto du service fusioninventory-agent
+sudo systemctl enable fusioninventory-agent
+
+ Démarrer le service fusioninventory-agent
+sudo systemctl start fusioninventory-agent
+
+ Vérifier que le service fusioninventory-agent a démarré correctement
+sudo systemctl status fusioninventory-agent
+
+ Ouvrir la page web de fusioninventory-agent
+firefox http://localhost:62354 &
+ vérifier que la page du serveur GLPI ou sont envoyés les données s'affiche sur la page cliquer sur Force an Inventory cliquer sur back
+ 
+ Ouvrir GLPI dans firefox
+firefox http://localhost &
+ Aller dans le menu configuration/plugins cliquer sur FusionInventory
+ le message d'erreur "Le cron de GLPI ne fonctionne pas, voir documentation" s'affiche pour y remédier
+ aller dans le menu Configuration/Actions automatique  dans la colonne nom cliquer sur tasksheduler 
+ qui se trouve en fin de deuxième page cliquer sur exécuter. Retourner dans Configuration/plugins cliquer
+ sur FusionInventory le message d'erreur n'apparait plus.
+
+ Dans le menu Parc/Ordinateur votre poste devrait apparaitre
+ 
+ Pour vérifier que tout est OK redémarrer votre poste ouvrir GLPI et contrôler que tout est en ordre.
+ 
+ Note : La tâche cron est assez étrange à paramétrer plusieurs méthodes existent, j’en ai choisi une peut être pas la meilleur,
+        quelques lien au cas où cela ne fonctionne pas.
+		 http://fusioninventory.org/documentation/fi4g/cron.html
+         https://rdr-it.com/glpi-actions-automatiques-configuration/
+		 https://rdr-it.com/tache-planifiee-qui-ne-sexecute-pas/
+		 https://forum.glpi-project.org/viewtopic.php?id=164937 (voir dernier poste)
+		 
+ FIN....
+  
