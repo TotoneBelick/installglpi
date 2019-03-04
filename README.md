@@ -1,0 +1,2 @@
+# installglpi
+Script installation glpi
